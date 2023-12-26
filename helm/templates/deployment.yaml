@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-microservices-{{ .Values.majorVersion }}
+  namespace: devops-microservices
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devops-microservices-{{ .Values.majorVersion }}
+  template:
+    metadata:
+      labels:
+        app: devops-microservices-{{ .Values.majorVersion }}
+    spec:
+      containers:
+      - name: devops-microservices
+        image: gcr.io/devops-microservices/devops-microservices:{{ .Values.appVersion }}
+
+        ports:
+        - containerPort: 8080 
+          protocol: TCP
+
+        env:
+        - name: EXPECTED_API_KEY
+          value: "2f5ae96c-b558-4c7b-a590-a501ae1c3f6c"
+        - name: RELEASED_AT
+          value: "{{ now | date "20060102150405" }}"

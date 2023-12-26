@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: devops-microservices-certificate
+  namespace: devops-microservices
+  annotations:
+    "helm.sh/hook": pre-install
+spec:
+  secretName: devops-microservices-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - "az.nestorurquiza.com"

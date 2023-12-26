@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: devops-microservices-{{ .Values.majorVersion }} 
+  namespace: devops-microservices
+spec:
+  type: ClusterIP 
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080 
+  selector:
+    app: devops-microservices-{{ .Values.majorVersion }}
