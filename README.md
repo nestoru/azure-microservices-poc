@@ -2,7 +2,7 @@
 
 # Azure Terraform Helm Microservices PoC for Devops
 This PoC shows how to use Terraform to host TLS microservices (or many) in Microsoft Azure Kubernetes Service (AKS), deployed with Helm charts. The structure of the project is below and it is the second of three cloud projects (GCP, AZ, AWS) that show how to manage microservices hosted in different cloud providers.
-
+```
 ├── README.md
 ├── helm
 │   ├── Chart.yaml
@@ -33,7 +33,7 @@ This PoC shows how to use Terraform to host TLS microservices (or many) in Micro
     ├── sql
     │   └── sql.tf
     └── tfplan
-
+```
 ## Azure CLI
 - Install the az command (I will work mainly from OSX and linux)
 ```
