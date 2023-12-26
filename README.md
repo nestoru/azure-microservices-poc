@@ -127,6 +127,27 @@ http://${HOST}/DevOps
 
 - We commit this version to the main git branch and create a new majorVersion v1 branch for it. We go back to the main branch, update the message and then create v2 branch out of it. This allows us to be able to deploy the two versions in different pods and test them with requests having different paths (/v1/ and /v2/ paths). 
 ```
-
+git checkout -b devops-microservices-1
+git push -u origin devops-microservices-1
+git branch
+git checkout main
+vi microservice/app.py
+git add .
+git commit -m "change in app response"
+git push origin main
+git checkout -b devops-microservices-2
+git push -u origin devops-microservices-2
+git checkout devops-microservices-1 && grep Hello microservice/app.py
+git checkout devops-microservices-2 && grep Hello microservice/app.py
+```
+As a result we see something like the below:
+```
+% git checkout devops-microservices-1 && grep Hello microservice/app.py 
+    response_message = f"Hello {sender_name} your message will be sent."
+% git checkout devops-microservices-2 && grep Hello microservice/app.py
+    response_message = f"Hello {sender_name} your message will be sent to {receiver_name}."
 ```
 
+### Deploy and run the microservices on docker
+```
+```
