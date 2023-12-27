@@ -19,7 +19,7 @@ def devops_endpoint(major_version=None):
     sender_name = data['from']
     receiver_name = data['to']
 
-    response_message = f"Hello {sender_name} your message will be sent to {receiver_name}."
+    response_message = f"Hello {sender_name} your message will be sent."
     return jsonify({"major_version": major_version, "message": response_message})
 
 if __name__ == '__main__':
