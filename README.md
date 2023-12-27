@@ -40,7 +40,7 @@ This PoC shows how to use Terraform to host TLS microservices (or many) in Micro
 # OSX
 brew install azure-cli
 # Ubuntu 
-sudo apt-get install azure-cli
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 ```
 
 ## Kubernetes
@@ -50,7 +50,7 @@ az login
 az aks get-credentials --name devops-microservices --resource-group devops-microservices
 kubectl config current-context
 kubectl get nodes
-kubectl get pods
+kubectl get pods --all-namespaces
 ```
 
 ## Terraform
@@ -150,4 +150,36 @@ As a result we see something like the below:
 
 ### Deploy and run the microservices on docker
 ```
+cd microservice/
+docker build . -t devops-microservices 
+docker stop devops-microservices; docker rm devops-microservices
+docker run -e EXPECTED_API_KEY='2f5ae96c-b558-4c7b-a590-a501ae1c3f6c' --detach --publish 8080:8080 --name devops-microservices devops-microservices
+export EXPECTED_API_KEY='2f5ae96c-b558-4c7b-a590-a501ae1c3f6c' && export HOST=localhost:8080 && curl -kX POST -H "X-Parse-REST-API-Key: ${EXPECTED_API_KEY}" -H "Content-Type: application/json" -d '{ "message": "This is a test", "to": "Juan Perez", "from": "Rita Asturia", "timeToLifeSec": 45 }' http://${HOST}/DevOps
 ```
+
+### Deploy and run the microservices in Azure with the help of helm
+- Create the devopsmicroservices Azure Container Registry (ACR). In my case devopsmicroservicesacr.azurecr.io
+```
+az acr create --name devopsmicroservicesacr --resource-group devops-microservices --sku Basic --location francecentral
+az acr list --resource-group devops-microservices --output table
+```
+- Use the ACR to deploy the microservices docker images in the pods via the deployment manifest (deployment.yaml).
+- Update the AKS cluster to attach to the Azure Container Registry (ACR) so that docker is authjorized to pull images from the kubernetes cluster
+```
+az aks update -n devops-microservices -g devops-microservices --attach-acr devopsmicroservicesacr
+```
+- Run a manual deployment with helm to find out if pods are deployed
+```
+./deploy 1.0.1 # besides building the image and publishing, it also executes helm upgrade --install helm-1 ./helm --namespace devops-microservices --set majorVersion=1 --set appVersion=1.0.1
+kubectl get pods -n devops-microservices 
+```
+- Use port forwarding to interact with the pod running app
+```
+kubectl port-forward pod/`kubectl get pods --namespace devops-microservices | grep devops | head -1 | awk '{print $1}'` -n devops-microservices 8080
+```
+- Deploy the two microservices
+```
+
+```
+  
+
