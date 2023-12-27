@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: devops-microservices
-        image: gcr.io/devops-microservices/devops-microservices:{{ .Values.appVersion }}
+        image: devopsmicroservicesacr.azurecr.io/devops-microservices:{{ .Values.appVersion }}
 
         ports:
         - containerPort: 8080 
