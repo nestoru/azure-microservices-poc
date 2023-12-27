@@ -125,28 +125,6 @@ curl -kX POST \
 http://${HOST}/DevOps
 ```
 
-- We commit this version to the main git branch and create a new majorVersion v1 branch for it. We go back to the main branch, update the message and then create v2 branch out of it. This allows us to be able to deploy the two versions in different pods and test them with requests having different paths (/v1/ and /v2/ paths). 
-```
-git checkout -b devops-microservices-1
-git push -u origin devops-microservices-1
-git branch
-git checkout main
-vi microservice/app.py
-git add .
-git commit -m "change in app response"
-git push origin main
-git checkout -b devops-microservices-2
-git push -u origin devops-microservices-2
-git checkout devops-microservices-1 && grep Hello microservice/app.py
-git checkout devops-microservices-2 && grep Hello microservice/app.py
-```
-As a result we see something like the below:
-```
-% git checkout devops-microservices-1 && grep Hello microservice/app.py 
-    response_message = f"Hello {sender_name} your message will be sent."
-% git checkout devops-microservices-2 && grep Hello microservice/app.py
-    response_message = f"Hello {sender_name} your message will be sent to {receiver_name}."
-```
 
 ### Deploy and run the microservices on docker
 ```
@@ -177,9 +155,92 @@ kubectl get pods -n devops-microservices
 ```
 kubectl port-forward pod/`kubectl get pods --namespace devops-microservices | grep devops | head -1 | awk '{print $1}'` -n devops-microservices 8080
 ```
-- Deploy the two microservices
+- We commit this version to the main git branch and create a new majorVersion v1 branch for it. We go back to the main branch, update the message and then create v2 branch out of it. This allows us to be able to deploy the two versions in different pods and test them with requests having different paths (/v1/ and /v2/ paths). 
+```
+git checkout -b devops-microservices-1
+git push -u origin devops-microservices-1
+git branch
+git checkout main
+vi microservice/app.py
+git add .
+git commit -m "change in app response"
+git push origin main
+git checkout -b devops-microservices-2
+git push -u origin devops-microservices-2
+git checkout devops-microservices-1 && grep Hello microservice/app.py
+git checkout devops-microservices-2 && grep Hello microservice/app.py
+```
+As a result we see something like the below:
+```
+% git checkout devops-microservices-1 && grep Hello microservice/app.py 
+    response_message = f"Hello {sender_name} your message will be sent."
+% git checkout devops-microservices-2 && grep Hello microservice/app.py
+    response_message = f"Hello {sender_name} your message will be sent to {receiver_name}."
+```
+- Use port forward to confirm that the two microservices versions are installed independently from each other:
+```
+git checkout devops-microservices-1
+./deploy.sh 1.0.2
+kubectl port-forward pod/`kubectl get pods --namespace devops-microservices | grep devops-microservices-1 | head -1 | awk '{print $1}'` -n devops-microservices 8080
+# check response with curl
+git checkout devops-microservices-2
+./deploy.sh 2.0.2
+kubectl port-forward pod/`kubectl get pods --namespace devops-microservices | grep devops-microservices-2 | head -1 | awk '{print $1}'` -n devops-microservices 8080
+# check response with curl
 ```
 
+### Testing the service
+The pods run on port 8080 and are accessed via a service that uses ClusterIP to balance requests to them. This service runs on port 80. To test it, find out the IP of the services and use it from curl. List the services, pick the IP from the service you want to test, list the pods, pick the pod from where you will test the service, get into the pod and issue the curl command from there.
 ```
-  
+kubectl get services -n devops-microservices
+kubectl get pods -n devops-microservices
+kubectl exec -it devops-microservices-2-7b7bf45d65-zlh7r -n devops-microservices -- curl http://10.0.101.79:80
+```
 
+### Testing the ingress
+Here is a guide to troubleshoot any problems with external access using a divide and conquer procedure.
+
+Now that the service is responding on port 80, we test that the ingress is also responding. in the internal IP. In our case:
+```
+kubectl exec -it devops-microservices-2-7b7bf45d65-zlh7r -n devops-microservices -- curl http://10.0.13.159:80
+```
+
+If all works up to here then the external IP from the ingress should work as well:
+```
+kubectl exec -it devops-microservices-2-7b7bf45d65-zlh7r -n devops-microservices -- curl http://20.199.36.236:80
+```
+
+After adding the IP in a DNS A record we should also be able to confirm it works (using -k to ignore certificate for now and -L to accept the redirect from http to https):
+```
+host az.nestorurquiza.com
+kubectl exec -it devops-microservices-2-7b7bf45d65-zlh7r -n devops-microservices -- curl -kL http://az.nestorurquiza.com:80
+```
+
+Up to now we tested that from an internal pod the internal, external IPs and the domain do respond to application requests. Now we should be able to hit the app from any machine using the domain.
+```
+curl -kL http://az.nestorurquiza.com:80
+```
+
+### Useful kubernetes commands
+- Find logs from the ingress pod to find out possible certificate issues or routing issues for instance, first get the name of the ingress pod and then pull logs from it:
+```
+kubectl get pods -n devops-microservices
+kubectl logs nginx-ingress-ingress-nginx-controller-7bbc5d545c-fk298 -n devops-microservices
+```
+- Inspect loadbalancer rules
+```
+az aks show --name devops-microservices --resource-group devops-microservices --query nodeResourceGroup -o tsv
+az resource list --resource-group MC_devops-microservices_devops-microservices_francecentral --output table
+az network lb probe list --resource-group MC_devops-microservices_devops-microservices_francecentral --lb-name kubernetes --output table
+az network lb rule list --resource-group MC_devops-microservices_devops-microservices_francecentral --lb-name kubernetes --output table
+az network nsg list --resource-group MC_devops-microservices_devops-microservices_francecentral --output table
+az network nsg rule list --resource-group MC_devops-microservices_devops-microservices_francecentral --nsg-name aks-agentpool-39202527-nsg --output table
+```
+
+We need to ensure that when requests come to /v1/ they are routed to devops-microservices-1 and when they come to /v2/ they are wouted to devops-microservices-2. To that end we will expose the microservices with our own domain, by reserving the assigned public IP and mapping it in our DNS. I am using az.nestorurquiza.com for this. Review the descriptors for changes you need to use a different domain instead.
+
+- Determine the public IP being exposed and use curl with it to ensure the services are routed correctly (-k is used because the certificates work with domains and not IPs)
+```
+kubectl get services -n devops-microservices
+
+```

@@ -8,6 +8,7 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-passthrough: "false"
     kubernetes.io/ingress.class: "nginx"
     kubernetes.io/ingress.global-static-ip-name: devops-microservices-ip
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
 spec:
   tls:
   - hosts:
