@@ -4,15 +4,14 @@
 This PoC shows how to use Terraform to host TLS microservices (or many) in Microsoft Azure Kubernetes Service (AKS), deployed with Helm charts. The structure of the project is below and it is the second of three cloud projects (GCP, AZ, AWS) that show how to manage microservices hosted in different cloud providers.
 ```
 ├── README.md
+├── deploy.sh
 ├── helm
 │   ├── Chart.yaml
 │   ├── charts
 │   ├── templates
-│   │   ├── certificate.yaml
 │   │   ├── deployment.yaml
 │   │   ├── ingress.yaml
-│   │   ├── service.yaml
-│   │   └── tls-issuer.yaml
+│   │   └── service.yaml
 │   └── values.yaml
 ├── microservice
 │   ├── Dockerfile
@@ -32,7 +31,8 @@ This PoC shows how to use Terraform to host TLS microservices (or many) in Micro
     │   └── redis.tf
     ├── sql
     │   └── sql.tf
-    └── tfplan
+    ├── tfplan
+    └── versions.tf
 ```
 ## Azure CLI
 - Install the az command (I will work mainly from OSX and linux)
@@ -101,10 +101,8 @@ find ./helm/templates -type f -name "*.yaml" -exec sh -c 'echo "File: {}"; cat {
 * ./helm/Chart.yaml contains name, version and description of our helm environment to manage microsservices in kubernetes.
 * ./helm/values.yaml is an empty file because even though we will use variable values to deploy different majorVersion of our microservice we will inject these values from command line directly instead of hardcoding them in the values.yaml file.
 * ./helm/templates/deployment.yaml is the deployment descriptor in charge of deploying two pods per microservice appVersion. Note that the majorVersion ensures that each microservice major version gets their own deployed endpoint,
-* ./helm/templates/ingress.yaml ensures that requests coming to the host where microservices are invoked are enforced to use TLS, are tied to an external reserved IP, served by an nginx gateway behind a loadbalancer, and routes the upcoming traffic to the correct deployed majorVersion by using paths like /v1/, /v2/ etc. This works thanks to the "helm_release" "nginx_ingress resources declared in helm.tf.
-* ./helm/templates/tls-issuer.yaml is a ClusterIssuer manifest that ensures auto generation of TLS certificates via letsencrypt.
+* ./helm/templates/ingress.yaml should ensure that requests coming to the host where microservices are invoked are enforced to use TLS, are tied to an external reserved IP, served by an nginx gateway behind a loadbalancer, and routes the upcoming traffic to the correct deployed majorVersion by using paths like /v1/, /v2/ etc. Unfortunately for AKS "helm_release" "nginx_ingress" resources do not work as they would out of the box for GCP. Intead we use Azure Gateway Ingress Controller (AGIC) which does not work automatically at the time of this writing to generate certificates with providers like letsencrypt..
 * ./helm/templates/service.yaml is a ClusterIP manifest that ensures that the deployed pods will receive the requests equally distributed as these will be round robined through this service which received requests on internal port 80 and forwards it to port 8080 in the deployed pods.
-* ./helm/templates/certificate.yaml is a Certificate manifest that attaches the letsencryot certificate to the FQDN of the microservice.
 
 ### Deploy and run the microservices locally
 Before jumping to deploy our microservices in the cloud infrastructure we built with terraform using helm, we should make sure we can run them locally so that we can test what happens when we deploy them to the cloud.
@@ -218,31 +216,33 @@ host az.nestorurquiza.com
 kubectl exec -it devops-microservices-2-7b7bf45d65-zlh7r -n devops-microservices -- curl -kL http://az.nestorurquiza.com:80
 ```
 
-Up to now we tested that from an internal pod the internal, external IPs and the domain do respond to application requests. Now we should be able to hit the app from any machine using the domain.
+Up to now we tested that from an internal pod the internal, external IPs and the domain do respond to application requests. Now we should be able to hit the app from any machine using the domain and we can confirm that the two microservice versions are hit as expected. They are different and their SDLC can be separated from each other.
 ```
-curl -kL http://az.nestorurquiza.com:80
+nu@az gcp-devops-iac % export EXPECTED_API_KEY='2f5ae96c-b558-4c7b-a590-a501ae1c3f6c'
+export HOST=az.nestorurquiza.com
+curl -kX POST \
+-H "X-Parse-REST-API-Key: ${EXPECTED_API_KEY}" \
+-H "Content-Type: application/json" \
+-d '{ "message": "This is a test", "to": "Juan Perez", "from": "Rita Asturia", "timeToLifeSec": 45 }' \
+http://${HOST}/v1/DevOps
+{
+  "major_version": 1,
+  "message": "Hello Rita Asturia your message will be sent."
+}
+nu@az gcp-devops-iac % export EXPECTED_API_KEY='2f5ae96c-b558-4c7b-a590-a501ae1c3f6c'
+export HOST=az.nestorurquiza.com
+curl -kX POST \
+-H "X-Parse-REST-API-Key: ${EXPECTED_API_KEY}" \
+-H "Content-Type: application/json" \
+-d '{ "message": "This is a test", "to": "Juan Perez", "from": "Rita Asturia", "timeToLifeSec": 45 }' \
+http://${HOST}/v2/DevOps
+{
+  "major_version": 2,
+  "message": "Hello Rita Asturia your message will be sent to Juan Perez."
+}
 ```
 
-### Useful kubernetes commands
-- Find logs from the ingress pod to find out possible certificate issues or routing issues for instance, first get the name of the ingress pod and then pull logs from it:
-```
-kubectl get pods -n devops-microservices
-kubectl logs nginx-ingress-ingress-nginx-controller-7bbc5d545c-fk298 -n devops-microservices
-```
-- Inspect loadbalancer rules
-```
-az aks show --name devops-microservices --resource-group devops-microservices --query nodeResourceGroup -o tsv
-az resource list --resource-group MC_devops-microservices_devops-microservices_francecentral --output table
-az network lb probe list --resource-group MC_devops-microservices_devops-microservices_francecentral --lb-name kubernetes --output table
-az network lb rule list --resource-group MC_devops-microservices_devops-microservices_francecentral --lb-name kubernetes --output table
-az network nsg list --resource-group MC_devops-microservices_devops-microservices_francecentral --output table
-az network nsg rule list --resource-group MC_devops-microservices_devops-microservices_francecentral --nsg-name aks-agentpool-39202527-nsg --output table
-```
+We are ensuring that when requests come to /v1/ they are routed to devops-microservices-1 and when they come to /v2/ they are wouted to devops-microservices-2.
 
-We need to ensure that when requests come to /v1/ they are routed to devops-microservices-1 and when they come to /v2/ they are wouted to devops-microservices-2. To that end we will expose the microservices with our own domain, by reserving the assigned public IP and mapping it in our DNS. I am using az.nestorurquiza.com for this. Review the descriptors for changes you need to use a different domain instead.
-
-- Determine the public IP being exposed and use curl with it to ensure the services are routed correctly (-k is used because the certificates work with domains and not IPs)
-```
-kubectl get services -n devops-microservices
-
-```
+### TODO
+I run out of Axzure credits so I could not deliver an automated certificate issuer solution. The nginx ingress did not work as it worked for GCP. This is the reason why I used the recommended by Azure AGIC.
