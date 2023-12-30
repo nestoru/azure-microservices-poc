@@ -3,16 +3,8 @@ kind: Ingress
 metadata:
   name: devops-microservices-ingress-{{ .Values.majorVersion }}
   namespace: devops-microservices
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/ssl-passthrough: "false"
-    kubernetes.io/ingress.class: "nginx"
-    kubernetes.io/ingress.global-static-ip-name: devops-microservices-ip
 spec:
-  tls:
-  - hosts:
-    - "az.nestorurquiza.com"
-    secretName: devops-microservices-tls
+  ingressClassName: azure-application-gateway  # Updated for AGIC
   rules:
   - host: "az.nestorurquiza.com"
     http:
@@ -24,4 +16,3 @@ spec:
             name: devops-microservices-{{ .Values.majorVersion }}
             port:
               number: 80 
-

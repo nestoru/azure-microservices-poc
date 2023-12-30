@@ -79,13 +79,16 @@ az ad sp create-for-rbac --name "TerraformSP" --role="Contributor" --scopes="/su
 find ./ -type f -name "*.tf" -exec sh -c 'echo "File: {}"; cat {}' \;
 ```
 
-- Create terraform plan
+- Create and apply terraform plan
 ```
-terraform init && terraform validate && terraform plan -out=tfplan
-```
-- Apply the created terraform plan
-```
+cd terraform
+export KUBE_CONFIG_PATH=~/.kube/config && terraform init && terraform validate && terraform plan -refresh=false -out=tfplan
 export KUBE_CONFIG_PATH=~/.kube/config && terraform init && terraform validate && terraform apply "tfplan"
+```
+
+- Check the creation of the NSG. Network Security Groups are essential in Azure.
+```
+az network nsg list --resource-group devops-microservices --output table
 ```
 
 ## Helm
@@ -164,13 +167,13 @@ az acr create --name devopsmicroservicesacr --resource-group devops-microservice
 az acr list --resource-group devops-microservices --output table
 ```
 - Use the ACR to deploy the microservices docker images in the pods via the deployment manifest (deployment.yaml).
-- Update the AKS cluster to attach to the Azure Container Registry (ACR) so that docker is authjorized to pull images from the kubernetes cluster
+- Update the AKS cluster to attach to the Azure Container Registry (ACR) so that docker is authorized to pull images from the kubernetes cluster
 ```
 az aks update -n devops-microservices -g devops-microservices --attach-acr devopsmicroservicesacr
 ```
 - Run a manual deployment with helm to find out if pods are deployed
 ```
-./deploy 1.0.1 # besides building the image and publishing, it also executes helm upgrade --install helm-1 ./helm --namespace devops-microservices --set majorVersion=1 --set appVersion=1.0.1
+./deploy.sh 1.0.1 # besides building the image and publishing, it also executes helm upgrade --install helm-1 ./helm --namespace devops-microservices --set majorVersion=1 --set appVersion=1.0.1
 kubectl get pods -n devops-microservices 
 ```
 - Use port forwarding to interact with the pod running app
@@ -197,8 +200,13 @@ export EXPECTED_API_KEY='2f5ae96c-b558-4c7b-a590-a501ae1c3f6c' && export HOST=lo
 ### Deploy and run the microservices in Azure with the help of helm
 - Create the devopsmicroservices Azure Container Registry (ACR). In my case devopsmicroservicesacr.azurecr.io
 ```
+<<<<<<< HEAD
 az acr create --name devopsmicroservicesacr --resource-group devops-microservices --sku Basic --location francecentral
 az acr list --resource-group devops-microservices --output table
+=======
+kubectl get pods  -n devops-microservices && kubectl get svc  -n devops-microservices && kubectl get ingresses  -n devops-microservices
+kubectl exec -it devops-microservices-2-7b7bf45d65-zlh7r -n devops-microservices -- curl http://10.0.101.79:80
+>>>>>>> 68fa154 (Using Azure Gateway Ingress Controller (AGIC))
 ```
 - Use the ACR to deploy the microservices docker images in the pods via the deployment manifest (deployment.yaml).
 - Update the AKS cluster to attach to the Azure Container Registry (ACR) so that docker is authjorized to pull images from the kubernetes cluster
