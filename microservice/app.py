@@ -22,6 +22,10 @@ def devops_endpoint(major_version=None):
     response_message = f"Hello {sender_name} your message will be sent."
     return jsonify({"major_version": major_version, "message": response_message})
 
+@app.route('/', methods=['GET'])
+def health_check():
+    return 'This app works with POST /DevOps locally or with /v1/DevOps, /v2/DevOps, etc when remotely accessed', 200
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)
 
