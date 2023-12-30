@@ -246,3 +246,13 @@ We are ensuring that when requests come to /v1/ they are routed to devops-micros
 
 ### TODO
 I run out of Axzure credits so I could not deliver an automated certificate issuer solution. The nginx ingress did not work as it worked for GCP. This is the reason why I used the recommended by Azure AGIC.
+
+## Cleanup
+- Find out your resource groups
+```
+az group list --query "[].name" -o tsv
+```
+- Delete the ones that apply to this POC (Warning: Make sure you you understand that you are deleting all resources for this group)
+```
+az group delete --name <your-POC-resource-group> --yes --no-wait
+```
