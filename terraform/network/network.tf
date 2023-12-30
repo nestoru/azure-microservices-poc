@@ -23,14 +23,7 @@ resource "azurerm_subnet" "subnet2" {
   name                 = "vnet2_subnet"
   resource_group_name  = "devops-microservices"
   virtual_network_name = azurerm_virtual_network.vnet2.name
-  address_prefixes     = ["10.1.0.0/24"]
-}
-
-resource "azurerm_virtual_network_peering" "vnet1_to_vnet2" {
-  name                      = "vnet1-to-vnet2"
-  resource_group_name       = "devops-microservices" 
-  virtual_network_name      = azurerm_virtual_network.vnet1.name
-  remote_virtual_network_id = azurerm_virtual_network.vnet2.id
+  address_prefixes     = ["10.1.1.0/24"]
 }
 
 output "subnet1_id" {

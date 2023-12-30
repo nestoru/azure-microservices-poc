@@ -4,10 +4,10 @@ metadata:
   name: devops-microservices-{{ .Values.majorVersion }} 
   namespace: devops-microservices
 spec:
-  type: ClusterIP 
+  type: ClusterIP
   ports:
   - name: http
     port: 80
-    targetPort: 8080 
+    targetPort: 8080
   selector:
     app: devops-microservices-{{ .Values.majorVersion }}

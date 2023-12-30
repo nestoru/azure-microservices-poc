@@ -23,11 +23,11 @@ spec:
 
         livenessProbe:
           httpGet:
-            path: /
+            path: /DevOps
             port: 8080
         readinessProbe:
           httpGet:
-            path: /
+            path: /DevOps
             port: 8080
         env:
         - name: EXPECTED_API_KEY
