@@ -54,7 +54,7 @@ kubectl get pods --all-namespaces
 ```
 
 ## Terraform
-This POC assumes there are multiple microservices that will use redis for caching in a DMZ vnet1, communicating with a PostgreSQL db in a protected vnet2. To that end a root module devops-microservices.tf is created which deploys all needed modules (network.tf, redis.tf, sql.tf, gke.tf, and helm.tf) and keeps the stage in a bucket defined in backend.tf.
+This POC assumes there are multiple microservices that will use redis for caching in a DMZ vnet1, communicating with a PostgreSQL db in a protected vnet2. To that end a root module devops-microservices.tf is created which deploys all needed modules (network.tf, redis.tf, sql.tf, and helm.tf) and keeps the stage in a bucket defined in backend.tf.
  
 - Create the bucket to persist terraform state via storage.tf
 ```
